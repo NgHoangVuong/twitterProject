@@ -1,20 +1,24 @@
-import express from 'express'
-import usersRouter from '~/routes/users.routes'
-import databaseService from '~/services/database.services'
-
+import express, { Request, Response, NextFunction } from 'express'
+import userRouter from './routes/users.routes'
+import databaseService from './services/database.services'
+import { defaultErrorHandler } from './middlewares/error.middlewares'
 const app = express()
+const PORT = 3000
 
-const port = 3000
+databaseService.conect()
+
+app.use(express.json())
 
 app.get('/', (req, res) => {
-  res.send('hello world')
+  res.send('xin chao')
 })
 
-databaseService.connect()
-//fix lại thành user luôn cho dỡ hack não
-//nên api lúc này là http://localhost:3000/user/tweets
-app.use('/user', usersRouter) //route handler
-app.use(express.json()) //app handler
-app.listen(port, () => {
-  console.log(`Project twitter này đang chạy trên post ${port}`)
+app.use('/users', userRouter)
+//http://localhost:3000/users/tweets
+
+// app sử dung 1 middleware 1 erorhandler tổng
+app.use(defaultErrorHandler)
+
+app.listen(PORT, () => {
+  console.log(`Project twitter này đang chạy trên post ${PORT}`)
 })

@@ -1,15 +1,10 @@
 import { ObjectId } from 'mongodb'
+import { UserVerifyStatus } from '~/constants/enums'
 
-//lấy từ bài csdl
-enum UserVerifyStatus {
-  Unverified, // chưa xác thực email, mặc định = 0
-  Verified, // đã xác thực email
-  Banned // bị khóa
-}
 //đặt interface vì theo chuẩn ts thôi, chứ làm thực tế thì khác
 interface UserType {
   _id?: ObjectId
-  name?: string //optinal là ?
+  name: string //optinal là ?
   email: string
   date_of_birth?: Date
   password: string
