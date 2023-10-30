@@ -4,12 +4,12 @@ import { TokenPayload } from '~/models/requests/User.request'
 config()
 //privateKey là password để được quyền tạo chữ ký jwt
 export const signToken = ({
-  payload,
+  payload, //khong co tinh bao mat
   privateKey = process.env.JWT_SECRET as string,
   options = { algorithm: 'HS256' }
 }: {
   payload: string | object | Buffer
-  privateKey?: string
+  privateKey: string
   options?: jwt.SignOptions
 }) => {
   return new Promise<string>((resolve, reject) => {

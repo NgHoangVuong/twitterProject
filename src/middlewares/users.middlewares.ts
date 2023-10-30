@@ -208,10 +208,6 @@ export const accessTokenValidator = validate(
     {
       Authorization: {
         trim: true,
-        notEmpty: {
-          //kiểm tra có gữi lên không
-          errorMessage: USERS_MESSAGES.ACCESS_TOKEN_IS_REQUIRED
-        },
         custom: {
           //value là giá trị của Authorization, req là req của client gữi lên server
           options: async (value: string, { req }) => {
@@ -229,7 +225,10 @@ export const accessTokenValidator = validate(
             }
 
             try {
-              const decoded_authorization = await verifyToken({ token: access_token })
+              const decoded_authorization = await verifyToken({
+                token: access_token,
+                secretOrPublicKey: process.env.JWT_SECRET_ACCESS_TOKEN as string
+              })
               //nếu không có lỗi thì ta lưu decoded_authorization vào req để khi nào muốn biết ai gữi req thì dùng
               ;(req as Request).decoded_authorization = decoded_authorization
             } catch (error) {
@@ -253,15 +252,15 @@ export const refreshTokenValidator = validate(
   checkSchema(
     {
       refresh_token: {
-        notEmpty: {
-          //kiểm tra có gữi lên không
-          errorMessage: USERS_MESSAGES.REFRESH_TOKEN_IS_REQUIRED
-        },
+        trim: true,
         custom: {
           //value là giá trị của Authorization, req là req của client gữi lên server
           options: async (value: string, { req }) => {
             try {
-              const decoded_refresh_token = await verifyToken({ token: value })
+              const decoded_refresh_token = await verifyToken({
+                token: value,
+                secretOrPublicKey: process.env.JWT_SECRET_REFRESH_TOKEN as string
+              })
               const refessh_token = await databaseService.refreshTokens.findOne({ token: value })
               if (refessh_token === null) {
                 // biến lại thanh lỗi 401
@@ -287,6 +286,50 @@ export const refreshTokenValidator = validate(
               // nếu lỗi ko pải dạng này throw để lỗi về valid
               throw error
             }
+            return true //nếu không có lỗi thì trả về true
+          }
+        }
+      }
+    },
+    ['body']
+  )
+)
+
+export const emailVerifyValidator = validate(
+  checkSchema(
+    {
+      email_verify_token: {
+        trim: true, //thêm
+        custom: {
+          options: async (value: string, { req }) => {
+            //check xem người dùng có gữi lên email_verify_token không, nếu k thì lỗi
+            if (!value) {
+              throw new ErrorWithStatus({
+                message: USERS_MESSAGES.EMAIL_VERIFY_TOKEN_IS_REQUIRED,
+                status: HTTP_STATUS.UNAUTHORIZED //401
+              })
+            }
+            try {
+              //nếu có thì ta verify nó để có đc thông tin của người dùng
+              const decoded_email_verify_token = await verifyToken({
+                token: value,
+                secretOrPublicKey: process.env.JWT_SECRET_EMAIL_VERIFY_TOKEN as string
+              })
+              //nếu có thì ta lưu decoded_email_verify_token vào req để khi nào muốn biết ai gữi req thì dùng
+              ;(req as Request).decoded_email_verify_token = decoded_email_verify_token
+            } catch (error) {
+              //trong middleware này ta throw để lỗi về default error handler xử lý
+              if (error instanceof JsonWebTokenError) {
+                //nếu lỗi thuộc verify thì ta sẽ trả về lỗi này
+                throw new ErrorWithStatus({
+                  message: capitalize((error as JsonWebTokenError).message),
+                  status: HTTP_STATUS.UNAUTHORIZED //401
+                })
+              }
+              //còn nếu không phải thì ta sẽ trả về lỗi do ta throw ở trên try
+              throw error // này là lỗi đã tạo trên try
+            }
+
             return true //nếu không có lỗi thì trả về true
           }
         }
