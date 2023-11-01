@@ -49,7 +49,7 @@ des: resend email verify
 method: post
 header: {Authorization: Bearer <access_token>}
 */
-userRouter.post('/resend-email-verify', accessTokenValidator, wrapAsync(resendEmailVerifyController))
+userRouter.post('/resend-verify-email', accessTokenValidator, wrapAsync(resendEmailVerifyController))
 
 /*
 des: cung cấp email để reset password, gữi email cho người dùng

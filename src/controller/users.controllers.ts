@@ -15,6 +15,7 @@ import { ObjectId } from 'mongodb'
 import { USERS_MESSAGES } from '~/constants/messages'
 import HTTP_STATUS from '~/constants/httpStatus'
 import { UserVerifyStatus } from '~/constants/enums'
+import { ErrorWithStatus } from '~/models/Errors'
 
 export const loginController = async (req: Request, res: Response) => {
   const user = req.user as User // lấy user từ req
@@ -68,12 +69,20 @@ export const emailVerifyController = async (req: Request<ParamsDictionary, any, 
       message: USERS_MESSAGES.USER_NOT_FOUND
     })
   }
-  //nếu mà có user đó thì mình sẽ kiểm tra xem user đó có lưu email_verify_token k?
 
+  //nếu mà có user đó thì mình sẽ kiểm tra xem user đó có lưu email_verify_token k?
   if (user.email_verify_token === '' && user.verify !== UserVerifyStatus.Unverified) {
     //mặc định là status 200
     return res.json({
       message: USERS_MESSAGES.EMAIL_ALREADY_VERIFIED_BEFORE
+    })
+  }
+
+  //nếu mà ko khớp email_verify_token thì mình throw lỗi
+  if (user.email_verify_token !== (req.body.email_verify_token as string)) {
+    throw new ErrorWithStatus({
+      message: USERS_MESSAGES.EMAIL_VERIFY_TOKEN_IS_INCORRECT,
+      status: HTTP_STATUS.UNAUTHORIZED
     })
   }
 
@@ -90,7 +99,7 @@ export const emailVerifyController = async (req: Request<ParamsDictionary, any, 
   })
 }
 
-export const resendEmailVerifyController = async (req: Request, res: Response, next: NextFunction) => {
+export const resendEmailVerifyController = async (req: Request, res: Response) => {
   //khi đến đây thì accesstokenValidator đã chạy rồi => access_token đã đc decode
   //và lưu vào req.user, nên trong đó sẽ có user._id để tao sử dụng
   const { user_id } = req.decoded_authorization as TokenPayload //lấy user_id từ decoded_authorization
@@ -99,17 +108,26 @@ export const resendEmailVerifyController = async (req: Request, res: Response, n
     _id: new ObjectId(user_id)
   })
   //nếu k có user thì trả về lỗi 404: not found
-  if (!user) {
-    return res.status(HTTP_STATUS.NOT_FOUND).json({
-      message: USERS_MESSAGES.USER_NOT_FOUND
+  if (user === null) {
+    throw new ErrorWithStatus({
+      message: USERS_MESSAGES.USER_NOT_FOUND,
+      status: HTTP_STATUS.NOT_FOUND
     })
   }
   //nếu user đã verify email trước đó rồi thì trả về lỗi 400: bad request
-  if (user.verify == UserVerifyStatus.Verified) {
+  if (user.verify === UserVerifyStatus.Verified && user.email_verify_token === '') {
     return res.json({
       message: USERS_MESSAGES.EMAIL_ALREADY_VERIFIED_BEFORE
     })
   }
+
+  if (user.verify === UserVerifyStatus.Banned) {
+    throw new ErrorWithStatus({
+      message: USERS_MESSAGES.USER_BANNED,
+      status: HTTP_STATUS.FORBIDDEN //403
+    })
+  }
+
   //nếu user chưa verify email thì ta sẽ gữi lại email verify cho họ
   //cập nhật email_verify_token mới và gửi lại email verify cho họ
   const result = await usersService.resendEmailVerify(user_id)
