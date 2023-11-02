@@ -8,6 +8,7 @@ import {
   ForgotPasswordReqBody,
   LogoutReqBody,
   RegisterRequestBody,
+  ResetPasswordReqBody,
   TokenPayload,
   VerifyForgotPasswordReqBody
 } from '~/models/requests/User.request'
@@ -159,5 +160,31 @@ export const verifyForgotPasswordTokenController = async (
   //ta chỉ cần thông báo rằng token hợp lệ
   return res.json({
     message: USERS_MESSAGES.VERIFY_FORGOT_PASSWORD_TOKEN_SUCCESS
+  })
+}
+
+export const resetPasswordController = async (
+  req: Request<ParamsDictionary, any, ResetPasswordReqBody>,
+  res: Response,
+  next: NextFunction
+) => {
+  //middleware resetPasswordValidator đã chạy rồi, nên ta có thể lấy đc user_id từ decoded_forgot_password_token
+  const { user_id } = req.decoded_forgot_password_token as TokenPayload
+  const { password } = req.body
+  //vào database tìm user thông qua user_id này và cập nhật lại password mới
+  //vì vào database nên ta sẽ code ở user.services
+  const result = await usersService.resetPassword({ user_id, password }) //ta chưa code resetPassword
+  return res.json(result)
+}
+
+export const getMeController = async (req: Request, res: Response) => {
+  //middleware accessTokenValidator đã chạy rồi, nên ta có thể lấy đc user_id từ decoded_authorization
+  const { user_id } = req.decoded_authorization as TokenPayload
+  //tìm user thông qua user_id này và trả về user đó
+  //truy cập vào database nên ta sẽ code ở user.services
+  const result = await usersService.getMe(user_id) // hàm này ta chưa code, nhưng nó dùng user_id tìm user và trả ra user đó
+  return res.json({
+    message: USERS_MESSAGES.GET_ME_SUCCESS,
+    result: result
   })
 }
