@@ -343,30 +343,39 @@ export const emailVerifyValidator = validate(
 )
 
 export const forgotPasswordValidator = validate(
-  checkSchema({
-    email: {
-      isEmail: {
-        errorMessage: USERS_MESSAGES.EMAIL_IS_INVALID
-      },
-      trim: true,
-      custom: {
-        options: async (value, { req }) => {
-          //tìm trong database xem có user nào sở hữu email = value của email người dùng gữi lên không
-          const user = await databaseService.user.findOne({
-            email: value
-          })
-          //nếu không tìm đc user thì nói user không tồn tại
-          //khỏi tiến vào controller nữa
-          if (user === null) {
-            throw new Error(USERS_MESSAGES.USER_NOT_FOUND) //422
+  checkSchema(
+    {
+      email: {
+        notEmpty: {
+          errorMessage: USERS_MESSAGES.EMAIL_IS_REQUIRED
+        },
+        isEmail: {
+          errorMessage: USERS_MESSAGES.EMAIL_IS_INVALID
+        },
+        trim: true,
+        custom: {
+          options: async (value, { req }) => {
+            //tìm trong database xem có user nào sở hữu email = value của email người dùng gữi lên không
+            const user = await databaseService.user.findOne({
+              email: value
+            })
+            //nếu không tìm đc user thì nói user không tồn tại
+            //khỏi tiến vào controller nữa
+            if (user === null) {
+              throw new ErrorWithStatus({
+                message: USERS_MESSAGES.USER_NOT_FOUND,
+                status: HTTP_STATUS.NOT_FOUND
+              })
+            }
+            //đến đâu thì oke
+            req.user = user // lưu user mới tìm đc lại luôn, khi nào cần thì xài
+            return true
           }
-          //đến đâu thì oke
-          req.user = user // lưu user mới tìm đc lại luôn, khi nào cần thì xài
-          return true
         }
       }
-    }
-  })
+    },
+    ['body']
+  )
 )
 
 export const verifyForgotPasswordTokenValidator = validate(
@@ -402,7 +411,7 @@ export const verifyForgotPasswordTokenValidator = validate(
               if (user === null) {
                 throw new ErrorWithStatus({
                   message: USERS_MESSAGES.USER_NOT_FOUND,
-                  status: HTTP_STATUS.UNAUTHORIZED //401
+                  status: HTTP_STATUS.NOT_FOUND //404
                 })
               }
               //nếu forgot_password_token đã được sử dụng rồi thì throw error
@@ -410,7 +419,7 @@ export const verifyForgotPasswordTokenValidator = validate(
               //nghĩa là người dùng đã sử dụng forgot_password_token này rồi
               if (user.forgot_password_token !== value) {
                 throw new ErrorWithStatus({
-                  message: USERS_MESSAGES.INVALID_FORGOT_PASSWORD_TOKEN,
+                  message: USERS_MESSAGES.FORGOT_PASSWORD_TOKEN_IS_INCORRECT,
                   status: HTTP_STATUS.UNAUTHORIZED //401
                 })
               }
