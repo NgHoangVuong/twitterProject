@@ -1,5 +1,6 @@
 import HTTP_STATUS from '~/constants/httpStatus'
 import { USER_MESSAGE } from '~/constants/messages'
+
 type ErrorsType = Record<
   string,
   {
