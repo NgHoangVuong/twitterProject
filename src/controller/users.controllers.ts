@@ -276,3 +276,12 @@ export const refreshTokenController = async (
     result
   })
 }
+
+export const oAuthController = async (req: Request, res: Response, next: NextFunction) => {
+  const { code } = req.query // lấy code từ query params
+  const result = await usersService.oAuth(code as string) //oAuth tạo sau
+  return res.json({
+    message: USERS_MESSAGES.LOGIN_SUCCESS,
+    result
+  })
+}

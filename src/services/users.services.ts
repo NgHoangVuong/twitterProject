@@ -10,6 +10,7 @@ import { USERS_MESSAGES } from '~/constants/messages'
 import { ErrorWithStatus } from '~/models/Errors'
 import HTTP_STATUS from '~/constants/httpStatus'
 import { Follower } from '~/models/schemas/Followers.schema'
+import axios from 'axios'
 
 class UsersService {
   async register(payload: RegisterRequestBody) {
@@ -366,6 +367,30 @@ class UsersService {
       new RefreshToken({ user_id: new ObjectId(user_id), token: new_refresh_token })
     )
     return { access_token: new_access_token, refresh_token: new_refresh_token }
+  }
+
+  private async getOAuthGoogleToken(code: string) {
+    const body = {
+      code,
+      client_id: process.env.GOOGLE_CLIENT_ID, //khai báo trong .env bằng giá trị trong file json
+      client_secret: process.env.GOOGLE_CLIENT_SECRET, //khai báo trong .env bằng giá trị trong file json
+      redirect_uri: process.env.GOOGLE_REDIRECT_URI, //khai báo trong .env bằng giá trị trong file json
+      grant_type: 'authorization_code'
+    }
+    //giờ ta gọi api của google, truyền body này lên để lấy id_token
+    //ta dùng axios để gọi api `npm i axios`
+    const { data } = await axios.post(`https://oauth2.googleapis.com/token`, body, {
+      headers: {
+        'Content-Type': 'application/json' //kiểu truyền lên là form
+      }
+    }) //nhận đc response nhưng đã rã ra lấy data
+    return data
+  }
+
+  async oAuth(code: string) {
+    //dùng code lấy bộ token từ google
+    const result = await this.getOAuthGoogleToken(code)
+    console.log(result)
   }
 }
 
