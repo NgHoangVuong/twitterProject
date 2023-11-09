@@ -384,13 +384,79 @@ class UsersService {
         'Content-Type': 'application/json' //kiểu truyền lên là form
       }
     }) //nhận đc response nhưng đã rã ra lấy data
-    return data
+    return data as {
+      access_token: string
+      id_token: string
+    }
+  }
+
+  private async getGoogleUserInfo(access_token: string, id_token: string) {
+    const { data } = await axios.get(`https://www.googleapis.com/oauth2/v3/tokeninfo`, {
+      params: {
+        access_token,
+        alt: 'json'
+      },
+      headers: {
+        Authorization: `Bearer ${id_token}`
+      }
+    })
+    //ta chỉ lấy những thông tin cần thiết
+    return data as {
+      id: string
+      email: string
+      email_verified: boolean
+      name: string
+      given_name: string
+      family_name: string
+      picture: string
+      locale: string
+    }
   }
 
   async oAuth(code: string) {
     //dùng code lấy bộ token từ google
-    const result = await this.getOAuthGoogleToken(code)
-    console.log(result)
+    const { access_token, id_token } = await this.getOAuthGoogleToken(code)
+    const userInfor = await this.getGoogleUserInfo(access_token, id_token)
+    //userInfor giống payload mà ta đã check jwt ở trên
+    if (!userInfor.email_verified) {
+      throw new ErrorWithStatus({
+        message: USERS_MESSAGES.GMAIL_NOT_VERIFIED, // trong message.ts thêm GMAIL_NOT_VERIFIED: 'Gmail not verified'
+        status: HTTP_STATUS.BAD_REQUEST //thêm trong HTTP_STATUS BAD_REQUEST:400
+      })
+    }
+    //kiểm tra email đã đăng ký lần nào chưa bằng checkEmailExist đã viết ở trên
+    const user = await databaseService.user.findOne({ email: userInfor.email })
+    //nếu tồn tại thì cho login vào, tạo access và refresh token
+    if (user) {
+      const [access_token, refresh_token] = await this.signAccessTKandRT({
+        user_id: user._id.toString(),
+        verify: user.verify
+      }) //thêm user_id và verify
+      //thêm refresh token vào database
+      await databaseService.refreshTokens.insertOne(new RefreshToken({ user_id: user._id, token: refresh_token }))
+      return {
+        access_token,
+        refresh_token,
+        new_user: 0, //đây là user cũ
+        verify: user.verify
+      }
+    } else {
+      //random string password
+      const password = Math.random().toString(36).substring(1, 15)
+      //chưa tồn tại thì cho tạo mới, hàm register(đã viết trước đó) trả về access và refresh token
+      const data = await this.register({
+        email: userInfor.email,
+        name: userInfor.name,
+        password: password,
+        confirm_password: password,
+        date_of_birth: new Date().toISOString()
+      })
+      return {
+        ...data,
+        new_user: 1, //đây là user mới
+        verify: UserVerifyStatus.Unverified
+      }
+    }
   }
 }
 

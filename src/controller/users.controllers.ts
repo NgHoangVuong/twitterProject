@@ -24,6 +24,7 @@ import HTTP_STATUS from '~/constants/httpStatus'
 import { UserVerifyStatus } from '~/constants/enums'
 import { ErrorWithStatus } from '~/models/Errors'
 import { pick } from 'lodash'
+import { verify } from 'crypto'
 
 export const loginController = async (req: Request, res: Response) => {
   const user = req.user as User // lấy user từ req
@@ -279,9 +280,7 @@ export const refreshTokenController = async (
 
 export const oAuthController = async (req: Request, res: Response, next: NextFunction) => {
   const { code } = req.query // lấy code từ query params
-  const result = await usersService.oAuth(code as string) //oAuth tạo sau
-  return res.json({
-    message: USERS_MESSAGES.LOGIN_SUCCESS,
-    result
-  })
+  const { access_token, refresh_token, new_user } = await usersService.oAuth(code as string)
+  const urlRedirect = `${process.env.CLIENT_REDIRECT_CALLBACK}?access_token=${access_token}&refresh_token=${refresh_token}&new_user=${new_user}&verify=${verify}`
+  return res.redirect(urlRedirect)
 }
